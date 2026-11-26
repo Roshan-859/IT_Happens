@@ -1,0 +1,96 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="theme-color" content="#f4f7fb" />
+    <meta name="description" content="A clear, accountable way to report and resolve campus issues." />
+    <title>CampusCare — Issue Tracker</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <div class="app-shell">
+      <aside class="sidebar">
+        <a class="brand" href="#dashboard" aria-label="CampusCare home">
+          <span class="brand-mark"><svg viewBox="0 0 32 32" aria-hidden="true"><path d="M16 3.5 27 9.8v12.4L16 28.5 5 22.2V9.8L16 3.5Z"/><path d="M16 10v12M10 16h12"/></svg></span>
+          <span class="brand-name">campus<span>care</span></span>
+        </a>
+        <div class="workspace-label">WORKSPACE</div>
+        <nav class="nav-list" aria-label="Main navigation">
+          <a class="nav-link active" href="#dashboard" data-view="dashboard"><span class="nav-icon">◫</span> Overview</a>
+          <a class="nav-link" href="#tickets" data-view="tickets"><span class="nav-icon">▤</span> All tickets <span class="nav-count" id="navOpenCount">0</span></a>
+          <a class="nav-link" href="#my-tickets" data-view="my-tickets"><span class="nav-icon">◷</span> My tickets</a>
+        </nav>
+        <div class="sidebar-spacer"></div>
+        <div class="sidebar-help">
+          <div class="help-orb">✳</div>
+          <strong>Need a hand?</strong>
+          <p>Let us know when something on campus needs fixing.</p>
+          <button class="help-button" id="helpReport">Report an issue <span>↗</span></button>
+        </div>
+        <div class="sidebar-footer"><span class="campus-dot"></span><span>Rathinam Technical Campus</span></div>
+      </aside>
+
+      <main class="main-area">
+        <header class="topbar">
+          <div class="crumb"><span>Workspace</span><span class="crumb-slash">/</span><strong id="crumbTitle">Overview</strong></div>
+          <div class="top-actions">
+            <span class="demo-pill"><span></span> DEMO WORKSPACE</span>
+            <button class="icon-button notification-button" aria-label="Notifications">♧<i></i></button>
+            <div class="profile-wrap">
+              <div class="avatar avatar-admin" id="profileAvatar">AD</div>
+              <div class="profile-copy"><strong id="profileName">Alex Morgan</strong><span id="profileRole">Administrator</span></div>
+              <select id="roleSelect" aria-label="Switch demo role">
+                <option value="admin">Admin</option><option value="technician">Technician</option><option value="reporter">Reporter</option>
+              </select>
+              <span class="select-caret">⌄</span>
+            </div>
+          </div>
+        </header>
+
+        <section class="page-content">
+          <div class="welcome-row">
+            <div><div class="date-label" id="dateLabel"></div><h1 id="welcomeTitle">Good morning, Alex <span class="wave">✳</span></h1><p class="subheading" id="welcomeSub">Here’s what’s happening across campus today.</p></div>
+            <button class="primary-button" id="newTicketButton"><span class="plus">＋</span> New ticket</button>
+          </div>
+
+          <div class="metric-grid" id="metricGrid">
+            <article class="metric-card"><div class="metric-head"><span>Open tickets</span><span class="metric-icon blue">▤</span></div><div class="metric-value" id="metricOpen">—</div><div class="metric-foot"><span class="metric-indicator blue-text">●</span> Need attention</div></article>
+            <article class="metric-card"><div class="metric-head"><span>In progress</span><span class="metric-icon violet">◷</span></div><div class="metric-value" id="metricProgress">—</div><div class="metric-foot">Being worked on</div></article>
+            <article class="metric-card"><div class="metric-head"><span>Resolved this month</span><span class="metric-icon green">✓</span></div><div class="metric-value" id="metricResolved">—</div><div class="metric-foot"><span class="metric-indicator green-text">↗</span> Closed successfully</div></article>
+            <article class="metric-card"><div class="metric-head"><span>Avg. resolution time</span><span class="metric-icon amber">⌁</span></div><div class="metric-value" id="metricAvg">—</div><div class="metric-foot">Across resolved tickets</div></article>
+          </div>
+
+          <div class="content-grid">
+            <section class="panel ticket-panel" id="ticketPanel">
+              <div class="panel-heading"><div><h2 id="ticketHeading">Recent tickets</h2><p id="ticketSubheading">Keep an eye on the latest campus issues.</p></div><button class="text-button" id="viewAllButton">View all <span>→</span></button></div>
+              <div class="toolbar">
+                <label class="search-box"><span>⌕</span><input id="searchInput" type="search" placeholder="Search tickets..." /></label>
+                <select id="statusFilter" class="filter-select"><option value="all">All statuses</option><option>Open</option><option>Assigned</option><option>In Progress</option><option>Resolved</option></select>
+                <select id="priorityFilter" class="filter-select"><option value="all">All priorities</option><option>Urgent</option><option>High</option><option>Medium</option><option>Low</option></select>
+                <select id="departmentFilter" class="filter-select"><option value="all">All departments</option><option>CSE (AI&amp;ML)</option><option>Computer Science</option><option>Electronics</option><option>Mechanical</option><option>Campus Facilities</option><option>Network Operations</option></select>
+              </div>
+              <div class="table-scroll"><table><thead><tr><th>TICKET</th><th>ISSUE</th><th>PRIORITY</th><th>STATUS</th><th>ASSIGNEE</th><th>UPDATED</th><th></th></tr></thead><tbody id="ticketRows"></tbody></table></div>
+              <div class="empty-state hidden" id="emptyTickets"><div>⌕</div><strong>No tickets found</strong><span>Try changing your filters or create a new ticket.</span></div>
+              <div class="table-footer"><span id="ticketCountLabel"></span><button class="pagination-button" id="showMoreButton">Show all tickets <span>→</span></button></div>
+            </section>
+            <aside class="right-column">
+              <section class="panel workload-panel"><div class="panel-heading compact"><div><h2>Technician workload</h2><p>Assigned tickets by teammate</p></div><button class="more-button" aria-label="More options">···</button></div><div id="workloadList" class="workload-list"></div><div class="workload-foot"><span>Team capacity</span><strong id="capacityLabel">—</strong></div><div class="capacity-track"><span id="capacityBar"></span></div></section>
+              <section class="panel activity-panel"><div class="panel-heading compact"><div><h2>Recent activity</h2><p>Latest updates from your team</p></div><span class="live-dot">LIVE</span></div><div class="activity-list" id="activityList"></div></section>
+            </aside>
+          </div>
+          <footer class="page-footer"><span>Built for a better campus day.</span><span>CampusCare <b>·</b> Issue Tracker</span></footer>
+        </section>
+      </main>
+    </div>
+
+    <div class="modal-backdrop hidden" id="ticketModal" role="dialog" aria-modal="true" aria-labelledby="modalTitle"><div class="modal-card"><div class="modal-top"><div class="modal-symbol">＋</div><button class="close-button" data-close="ticketModal" aria-label="Close">×</button></div><div class="modal-title-wrap"><span class="eyebrow">CAMPUS SUPPORT</span><h2 id="modalTitle">Report an issue</h2><p>Share a few details and we’ll get the right person on it.</p></div><form id="ticketForm" novalidate><div class="form-row"><label class="field full-field">Issue title<input name="title" maxlength="100" placeholder="e.g. Projector not connecting" required /></label></div><label class="field">Description<textarea name="description" maxlength="800" rows="3" placeholder="What happened? Include anything that might help us fix it." required></textarea></label><div class="form-grid"><label class="field">Category<select name="category" required><option value="">Select category</option><option>Hardware</option><option>Software</option><option>Network</option><option>Facility</option></select></label><label class="field">Priority<select name="priority" required><option value="">Select priority</option><option>Low</option><option>Medium</option><option>High</option><option>Urgent</option></select></label></div><div class="form-grid"><label class="field">Location<input name="location" maxlength="120" placeholder="Building, lab, room or workstation" required /></label><label class="field">Department<select name="department"><option>CSE (AI&amp;ML)</option><option>Computer Science</option><option>Electronics</option><option>Mechanical</option><option>Campus Facilities</option><option>Administration</option></select></label></div><label class="field">Photo evidence <span class="optional">OPTIONAL</span><span class="upload-zone"><input type="file" name="photo" accept="image/png,image/jpeg,image/webp" /><span class="upload-icon">⇧</span><span><strong>Choose a photo</strong> or drag it here<small>PNG, JPG or WEBP · up to 5 MB</small></span></span><span class="file-name" id="fileName"></span></label><div class="duplicate-warning hidden" id="duplicateWarning"><span>!</span><div><strong>There’s already a similar open issue here</strong><p id="duplicateText"></p><button type="button" class="inline-link" id="duplicateView">View matching ticket →</button></div></div><div class="form-error" id="formError" role="alert"></div><div class="modal-actions"><button type="button" class="secondary-button" data-close="ticketModal">Cancel</button><button type="submit" class="primary-button"><span>Submit ticket</span><span>→</span></button></div></form></div></div>
+
+    <div class="modal-backdrop hidden" id="detailModal" role="dialog" aria-modal="true" aria-labelledby="detailTitle"><div class="modal-card detail-card"><div class="detail-modal-head"><span class="eyebrow" id="detailId">TKT-000</span><button class="close-button" data-close="detailModal" aria-label="Close">×</button></div><div id="detailContent"></div></div></div>
+    <div class="toast" id="toast" role="status"></div>
+    <script src="app.js"></script>
+  </body>
+</html>
