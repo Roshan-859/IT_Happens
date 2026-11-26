@@ -1,47 +1,57 @@
-# CampusCare — Smart Campus Issue Tracker
+# CampusCare · Smart Campus Mission Control
 
-A small, responsive campus issue tracking app built for the IT HAPPENS @ RAALE #15 Smart Campus & Lab Resource Issue Tracker challenge.
+A responsive campus issue tracker and installable progressive web app for the IT HAPPENS @ RAALE #15 Smart Campus & Lab Resource Issue Tracker challenge.
 
-## What is included
+## App and website
 
-- Reporter flow to create a ticket with title, description, category, priority, location, department, and optional photo evidence.
-- Similar open ticket warning for the same campus location, with a choice to inspect the matching ticket or submit a separate issue.
-- Admin view with open and in-progress counts, resolved tickets, average resolution time, department and priority filters, and technician workload.
-- Admin assignment of open tickets to a listed technician. Admins can return an active ticket to Open with a reason before reassigning it.
-- Technician flow to start assigned work, add progress notes, and resolve a ticket only after entering resolution details.
-- Append-only ticket activity history for creation, assignment, progress, return, and resolution.
-- Responsive layout and seeded example tickets for a quick walkthrough.
+CampusCare runs as a website on laptop and mobile browsers. On supported browsers, choose **Install app** to add it to the desktop or phone app launcher. On iPhone/iPad, use the browser's **Add to Home Screen** option. The app shell is cached for offline opening; tickets remain in that browser's local storage and need a connection to sync between devices because this demo does not have a shared server.
+
+## Demo sign-in
+
+Choose a role on the sign-in page. Demo account details are shown there; the shared demo password is `campuscare-demo`.
+
+| Role | Email |
+| --- | --- |
+| Admin | `admin@campuscare.demo` |
+| Technician | `tech@campuscare.demo` |
+| Teacher | `teacher@campuscare.demo` |
+| Student / Reporter | `student@campuscare.demo` |
+
+## Included workflows
+
+- Admin mission control with open queue, resolution, average resolution time, SLA compliance, and breach indicators.
+- Campus health matrix with clickable zone filters, category and priority charts, and technician workload.
+- Responsive ticket queue with search, status, priority, and department filters.
+- Reporter ticket creation with required details, optional image metadata, and similar-ticket warnings.
+- Admin assignment and return-to-open workflow with a recorded reason.
+- Technician start-work, progress note, and resolution note flow.
+- Ticket history for creation, assignment, progress, return, and resolution.
+- Role-based workspaces for admin, technician, teacher, and student/reporter.
 
 ## Run locally
 
-This is a static HTML, CSS, and JavaScript demo with no install step. From this folder, start any local static file server, for example:
+This is a static HTML, CSS, and JavaScript app with no install step. From the project folder, start a static file server:
 
 ```sh
 python3 -m http.server 8000
 ```
 
-Then open `http://localhost:8000` in a browser.
+Open `http://localhost:8000` in a browser. A secure origin such as localhost or HTTPS is needed for install prompts and service workers.
 
-## Demo walkthrough
+## Demo limitations
 
-1. Start as Admin to see campus metrics, workload, filters, and sample tickets.
-2. Open `TKT-204` to assign it to a Technician.
-3. Switch the profile menu to Technician, open the assigned ticket, start work, then add a resolution note and resolve it.
-4. Switch to Reporter and submit a similar ticket at `CSE AI Lab · PC-12` to see the duplicate warning.
-5. Use All tickets to filter by status, priority, department, or search terms.
+The sign-in screen and role selection are for demonstration. They do not authenticate a real campus account, and role checks run in the browser, so they are not a security boundary. Tickets are stored only in the current browser. Photo type and size are checked, but files are not uploaded. Before real use, connect a shared database and authentication provider, enforce permissions on the server, and store attachments in protected storage.
 
-## Demo data and limitations
-
-Tickets are saved in the current browser's local storage, so this demo has no shared database or real campus sign-in. The Admin, Technician, and Reporter selector is for presenting the workflows; permissions and validation run in the browser and are not a security boundary. Photo selection is validated and its filename is kept, but the image itself is not uploaded. For real campus use, connect an authenticated backend and shared database, enforce role permissions on the server, and store photo files in protected storage.
-
-The resolution time metric is the arithmetic mean of `resolvedAt - createdAt` for resolved tickets. The demo records the resolution timestamp as the ticket's final update time.
+The demo's SLA target is four hours for Urgent, eight hours for High, 24 hours for Medium, and 72 hours for Low priority. Average resolution time is the mean of `resolvedAt - createdAt` for resolved tickets. The demo uses the ticket's final update time as the resolution time.
 
 ## Deploy on Vercel
 
-Import `Roshan-859/IT_Happens` as a new Vercel project. Select **Other** as the framework preset and leave the build command and output directory blank. The static files are served from the repository root. Vercel will provide a public preview URL when the deployment completes.
+The GitHub repository is connected to Vercel. Push commits to `main` to create a new production deployment. The project uses the **Other** framework preset and serves static files from the repository root.
 
 ## Project files
 
-- `index.html` — app layout and forms
-- `styles.css` — responsive visual design
-- `app.js` — ticket data, demo workflows, filters, validation, and history
+- `index.html` — mission-control dashboard, responsive sign-in, and ticket dialogs
+- `styles.css` — laptop and mobile layouts
+- `app.js` — sample accounts, ticket workflows, dashboard metrics, and role views
+- `manifest.webmanifest` and `icon.svg` — installable app details
+- `service-worker.js` — offline app-shell cache
