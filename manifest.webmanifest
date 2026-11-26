@@ -1,0 +1,15 @@
+{
+  "id": "/",
+  "name": "CampusCare · Smart Campus Support",
+  "short_name": "CampusCare",
+  "description": "Report and follow campus issues from any device.",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "any",
+  "background_color": "#f7f8fa",
+  "theme_color": "#14263b",
+  "icons": [
+    { "src": "/icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any maskable" }
+  ]
+}
