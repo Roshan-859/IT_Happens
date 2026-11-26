@@ -5,8 +5,14 @@
   const people = {
     admin: { name: 'Alex Morgan', role: 'Administrator', initials: 'AM', department: 'Campus Operations' },
     technician: { name: 'Jordan Lee', role: 'Technician', initials: 'JL', department: 'IT Services' },
-    reporter: { name: 'Sam Rivera', role: 'Student Reporter', initials: 'SR', department: 'CSE (AI&ML)' },
+    teacher: { name: 'Dr. Anita Rao', role: 'Teacher', initials: 'AR', department: 'Computer Science' },
+    student: { name: 'Sam Rivera', role: 'Student / Reporter', initials: 'SR', department: 'CSE (AI&ML)' },
   };
+  const demoAccounts = {
+    admin: 'admin@campuscare.demo', technician: 'tech@campuscare.demo',
+    teacher: 'teacher@campuscare.demo', student: 'student@campuscare.demo',
+  };
+  const DEMO_PASSWORD = 'campuscare-demo';
   const technicians = [
     { name: 'Jordan Lee', initials: 'JL', tint: 'lavender', department: 'IT Services' },
     { name: 'Priya Nair', initials: 'PN', tint: 'mint', department: 'Lab Support' },
@@ -29,11 +35,11 @@
     return samples.map(([id, title, description, category, priority, location, department, status, assignee, hours], i) => {
       const createdAt = ago(hours + (status === 'Resolved' ? 19 : 0));
       const updatedAt = ago(hours);
-      const history = [{ actor: people.reporter.name, action: 'created this ticket', note: '', at: createdAt }];
+      const history = [{ actor: people.student.name, action: 'created this ticket', note: '', at: createdAt }];
       if (assignee) history.push({ actor: 'Alex Morgan', action: `assigned ticket to ${assignee}`, note: '', at: ago(hours + 1) });
       if (status === 'In Progress' || status === 'Resolved') history.push({ actor: assignee || people.admin.name, action: 'started work', note: 'Investigation underway.', at: ago(hours) });
       if (status === 'Resolved') history.push({ actor: assignee || people.admin.name, action: 'resolved this ticket', note: 'Issue repaired and verified with the reporter.', at: updatedAt });
-      return { id, title, description, category, priority, location, department, status, assignee, reporter: i === 0 ? people.reporter.name : ['Taylor Reed', 'Nisha Patel', 'Dev Anand', 'Maya Chen', 'Sam Rivera', 'Taylor Reed', 'Sam Rivera'][i], createdAt, updatedAt, photo: null, resolution: status === 'Resolved' ? 'Issue repaired and verified with the reporter.' : '', history };
+      return { id, title, description, category, priority, location, department, status, assignee, reporter: i === 0 ? people.student.name : ['Taylor Reed', 'Nisha Patel', 'Dev Anand', 'Maya Chen', 'Sam Rivera', 'Taylor Reed', 'Sam Rivera'][i], createdAt, updatedAt, photo: null, resolution: status === 'Resolved' ? 'Issue repaired and verified with the reporter.' : '', history };
     });
   }
   function loadTickets() {
@@ -54,6 +60,8 @@
   let selectedTicketId = null;
   let duplicateConfirmed = false;
   let toastTimer;
+  let loginRole = 'admin';
+  let deferredInstallPrompt = null;
 
   const $ = (selector, root = document) => root.querySelector(selector);
   const $$ = (selector, root = document) => [...root.querySelectorAll(selector)];
@@ -67,7 +75,7 @@
     if (hours < 1) return 'Just now'; if (hours < 24) return `${hours}h ago`;
     const days = Math.floor(hours / 24); return `${days}d ago`;
   };
-  const visibleTickets = () => activeRole === 'reporter' ? tickets.filter((ticket) => ticket.reporter === people.reporter.name) : activeRole === 'technician' ? tickets.filter((ticket) => ticket.assignee === people.technician.name) : tickets;
+  const visibleTickets = () => ['teacher', 'student'].includes(activeRole) ? tickets.filter((ticket) => ticket.reporter === currentPerson().name) : activeRole === 'technician' ? tickets.filter((ticket) => ticket.assignee === people.technician.name) : tickets;
   const countOpen = (items) => items.filter((ticket) => ticket.status !== 'Resolved').length;
   const makeId = () => {
     const highest = tickets.reduce((max, ticket) => Math.max(max, Number((ticket.id.match(/\d+/) || [0])[0])), 200);
@@ -79,17 +87,16 @@
   function setRole(role) {
     activeRole = role;
     const person = currentPerson();
+    $('#roleSelect').value = role;
     $('#profileName').textContent = person.name;
     $('#profileRole').textContent = person.role;
     $('#profileAvatar').textContent = person.initials;
     $('#profileAvatar').className = `avatar ${role === 'admin' ? 'avatar-admin' : role === 'technician' ? 'avatar-tech' : 'avatar-report'}`;
-    const greeting = new Date().getHours() < 12 ? 'Good morning' : new Date().getHours() < 18 ? 'Good afternoon' : 'Good evening';
-    $('#welcomeTitle').innerHTML = `${greeting}, ${esc(person.name.split(' ')[0])} <span class="wave">✳</span>`;
-    $('#welcomeSub').textContent = role === 'admin' ? 'Here’s what’s happening across campus today.' : role === 'technician' ? 'Here are the campus issues assigned to you.' : 'Here are your reported campus issues.';
+    $('#welcomeSub').textContent = role === 'admin' ? `${person.name} · Full campus visibility, dispatch & SLA analytics` : role === 'technician' ? `${person.name} · Assigned work and resolution queue` : `${person.name} · Track campus issues and updates`;
     $('#metricGrid').classList.toggle('hidden', role !== 'admin');
-    $('#workloadList').closest('.workload-panel').classList.toggle('hidden', role !== 'admin');
+    $('#analyticsSection').classList.toggle('hidden', role !== 'admin');
     $('#viewAllButton').classList.toggle('hidden', role !== 'admin');
-    if (role === 'reporter') currentView = 'my-tickets';
+    if (['student', 'teacher'].includes(role)) currentView = 'my-tickets';
     else if (role === 'technician') currentView = 'tickets';
     else currentView = 'dashboard';
     render();
@@ -97,15 +104,64 @@
 
   function renderMetrics() {
     const open = tickets.filter((t) => t.status !== 'Resolved').length;
-    const progress = tickets.filter((t) => t.status === 'In Progress').length;
     const resolved = tickets.filter((t) => t.status === 'Resolved');
     const mins = resolved.map((t) => Math.max(0, (new Date(t.updatedAt) - new Date(t.createdAt)) / 60000));
     const avgMins = mins.length ? mins.reduce((sum, val) => sum + val, 0) / mins.length : 0;
+    const slaMins = { Urgent: 240, High: 480, Medium: 1440, Low: 4320 };
+    const breached = tickets.filter((t) => t.status !== 'Resolved' && (now - new Date(t.createdAt).getTime()) / 60000 > slaMins[t.priority]);
+    const compliant = tickets.filter((t) => {
+      const duration = (new Date(t.status === 'Resolved' ? t.updatedAt : now) - new Date(t.createdAt)) / 60000;
+      return duration <= slaMins[t.priority];
+    }).length;
+    const compliance = tickets.length ? Math.round(compliant / tickets.length * 100) : 100;
     $('#metricOpen').textContent = open;
-    $('#metricProgress').textContent = progress;
     $('#metricResolved').textContent = resolved.length;
     $('#metricAvg').textContent = avgMins < 60 ? `${Math.round(avgMins)}m` : `${(avgMins / 60).toFixed(1)}h`;
-    $('#navOpenCount').textContent = open;
+    $('#metricSla').textContent = `${compliance}%`;
+    $('#metricBreached').textContent = breached.length;
+    $('#metricOpenFoot').textContent = `${tickets.filter((t) => t.status === 'Open').length} awaiting dispatch`;
+    $('#metricResolvedFoot').textContent = `of ${tickets.length} total logged`;
+    $('#metricAvgFoot').textContent = `${Math.round(avgMins)} mins average`;
+    $('#metricSlaFoot').textContent = `${resolved.length ? 'Based on recorded resolutions' : 'Target time by priority'}`;
+    const atRisk = tickets.filter((t) => t.status !== 'Resolved' && slaMins[t.priority] - (now - new Date(t.createdAt).getTime()) / 60000 <= 30 && !breached.includes(t)).length;
+    $('#metricBreachedFoot').textContent = atRisk ? `${atRisk} nearing the response target` : 'No additional tickets at risk';
+    const navCount = $('#navOpenCount'); if (navCount) navCount.textContent = open;
+  }
+
+  function renderCampusMatrix() {
+    const zones = [
+      ['CSE AI Lab', 'Academic Block A · Floor 2', 'CSE AI Lab'],
+      ['Networking Lab', 'Academic Block A · Floor 3', 'Network'],
+      ['Main Auditorium', 'Central Block · Ground', 'Auditorium'],
+      ['Library Server Room', 'Central Library · Annex', 'Library'],
+      ['ECE Embedded Lab', 'ECE Block · Floor 1', 'ECE'],
+      ['Rathinam Innovation Hub', 'RAALE Incubation Wing', 'Innovation Hub'],
+    ];
+    $('#zoneGrid').innerHTML = zones.map(([name, location, key]) => {
+      const relevant = tickets.filter((t) => t.status !== 'Resolved' && `${t.location} ${t.department}`.toLowerCase().includes(key.toLowerCase()));
+      const critical = relevant.some((t) => t.priority === 'Urgent' || t.priority === 'High');
+      const level = critical ? 'red' : relevant.length ? 'amber' : 'green';
+      const label = critical ? 'Critical / Action Needed' : relevant.length ? 'Degraded / Elevated' : 'Operational';
+      return `<button type="button" class="zone-card zone-${level}" data-zone="${esc(key)}"><span class="zone-top"><span class="zone-name"><i></i>${esc(name)}</span><span class="zone-tag">${level.toUpperCase()}</span></span><span class="zone-location">${esc(location)}</span><span class="zone-bottom"><strong>${label}</strong><span>${relevant.length} active${relevant.some((t) => t.status === 'Open') ? ` · ${relevant.filter((t) => t.status === 'Open').length} unassigned` : ''}</span></span></button>`;
+    }).join('');
+    $$('.zone-card').forEach((card) => card.addEventListener('click', () => {
+      $('#searchInput').value = card.dataset.zone; currentView = 'tickets'; showAll = true; render(); $('#ticketPanel').scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }));
+  }
+
+  function renderCharts() {
+    const categories = ['Hardware', 'Software', 'Network', 'Facility'];
+    const maxCat = Math.max(1, ...categories.map((c) => tickets.filter((t) => t.category === c).length));
+    $('#categoryChart').innerHTML = categories.map((category) => {
+      const count = tickets.filter((t) => t.category === category).length;
+      return `<div class="chart-row"><span>${esc(category)}</span><span class="chart-track"><i style="width:${Math.round(count / maxCat * 100)}%"></i></span><strong>${count}</strong></div>`;
+    }).join('');
+    const priorities = ['Urgent', 'High', 'Medium', 'Low'];
+    const maxPriority = Math.max(1, ...priorities.map((p) => tickets.filter((t) => t.priority === p && t.status !== 'Resolved').length));
+    $('#priorityChart').innerHTML = priorities.map((priority) => {
+      const count = tickets.filter((t) => t.priority === priority && t.status !== 'Resolved').length;
+      return `<div class="chart-row priority-row"><span><i class="priority-dot ${priority.toLowerCase()}"></i>${priority}</span><span class="chart-track"><i class="priority-fill ${priority.toLowerCase()}" style="width:${Math.round(count / maxPriority * 100)}%"></i></span><strong>${count}</strong></div>`;
+    }).join('');
   }
 
   function getFilteredTickets() {
@@ -142,7 +198,7 @@
     const activeTickets = tickets.filter((ticket) => ticket.status !== 'Resolved' && ticket.assignee);
     const counts = technicians.map((person) => ({ ...person, count: activeTickets.filter((ticket) => ticket.assignee === person.name).length }));
     const tones = { lavender: ['#f1eafd', '#8f6ec3'], mint: ['#e5f4ec', '#408766'], peach: ['#fbede3', '#b7764b'], sky: ['#e8f2fc', '#5681b7'] };
-    $('#workloadList').innerHTML = counts.map((person) => `<div class="workload-row"><span class="person-avatar" style="background:${tones[person.tint][0]};color:${tones[person.tint][1]}">${esc(person.initials)}</span><span class="person-name"><strong>${esc(person.name)}</strong><span>${esc(person.department)}</span></span><span class="work-count">${person.count} ${person.count === 1 ? 'ticket' : 'tickets'}</span></div>`).join('');
+    $('#workloadList').innerHTML = counts.map((person) => `<div class="workload-row"><span class="person-avatar" style="background:${tones[person.tint][0]};color:${tones[person.tint][1]}">${esc(person.initials)}</span><span class="person-name"><strong>${esc(person.name)}</strong><span>${esc(person.department)}</span></span><span class="work-count">${person.count} ${person.count === 1 ? 'ticket' : 'tickets'}</span><span class="workload-meter"><i style="width:${Math.min(100, person.count * 26)}%"></i></span></div>`).join('');
     const capacity = Math.min(100, Math.round(activeTickets.length / (technicians.length * 4) * 100));
     $('#capacityLabel').textContent = `${activeTickets.length} / ${technicians.length * 4} active`;
     $('#capacityBar').style.width = `${capacity}%`;
@@ -155,13 +211,14 @@
   }
 
   function render() {
-    const titles = { dashboard: 'Overview', tickets: 'All tickets', 'my-tickets': 'My tickets' };
-    $('#crumbTitle').textContent = titles[currentView];
-    $('#ticketHeading').textContent = currentView === 'dashboard' ? 'Recent tickets' : currentView === 'my-tickets' ? 'My tickets' : activeRole === 'technician' ? 'My assigned tickets' : 'All tickets';
+    const titles = { dashboard: 'Mission Control', tickets: 'All tickets', 'my-tickets': 'My tickets' };
+    $('#ticketHeading').textContent = currentView === 'dashboard' ? 'Live campus issue queue' : currentView === 'my-tickets' ? 'My reported issues' : activeRole === 'technician' ? 'My assigned tickets' : 'All campus tickets';
     $('#ticketSubheading').textContent = currentView === 'dashboard' ? 'Keep an eye on the latest campus issues.' : currentView === 'my-tickets' ? 'Track the progress of issues you reported.' : activeRole === 'technician' ? 'Your assigned campus issues and next steps.' : 'Review, filter and open any campus issue.';
     $$('.nav-link').forEach((link) => link.classList.toggle('active', link.dataset.view === currentView));
-    renderMetrics(); renderTickets(); renderWorkload(); renderActivity();
+    renderMetrics(); renderCampusMatrix(); renderCharts(); renderTickets(); renderWorkload(); renderActivity(); updateClock();
   }
+
+  function updateClock() { const clock = $('#systemClock'); if (clock) clock.textContent = new Intl.DateTimeFormat('en-GB', { hour: '2-digit', minute: '2-digit', second: '2-digit' }).format(new Date()); }
 
   function toast(message) {
     const el = $('#toast'); el.textContent = message; el.classList.add('show');
@@ -170,7 +227,7 @@
   function openModal(id) { $(`#${id}`).classList.remove('hidden'); document.body.style.overflow = 'hidden'; }
   function closeModal(id) { $(`#${id}`).classList.add('hidden'); if ($$('.modal-backdrop:not(.hidden)').length === 0) document.body.style.overflow = ''; }
   function openTicketForm() {
-    if (activeRole !== 'reporter') { setRole('reporter'); }
+    if (!['teacher', 'student'].includes(activeRole)) { setRole('student'); }
     $('#ticketForm').reset(); $('#formError').textContent = ''; $('#fileName').textContent = ''; $('#duplicateWarning').classList.add('hidden'); duplicateConfirmed = false; openModal('ticketModal');
   }
 
@@ -260,19 +317,60 @@
 
   function init() {
     const date = new Intl.DateTimeFormat('en', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' }).format(new Date());
-    $('#dateLabel').textContent = date.toUpperCase();
-    $('#roleSelect').addEventListener('change', (event) => setRole(event.target.value));
+    $('#dateLabel').textContent = `CAMPUS OPERATIONS · ${date.toUpperCase()}`;
+    $('#roleSelect').addEventListener('change', (event) => { setRole(event.target.value); sessionStorage.setItem('campuscare-demo-session', JSON.stringify({ role: event.target.value })); });
     $('#newTicketButton').addEventListener('click', openTicketForm); $('#helpReport').addEventListener('click', openTicketForm);
     $('#ticketForm').addEventListener('submit', submitTicket);
     $('#ticketForm').elements.photo.addEventListener('change', (event) => { const file = event.target.files[0]; $('#fileName').textContent = file ? `Selected: ${file.name}` : ''; });
     $('#searchInput').addEventListener('input', renderTickets); $('#statusFilter').addEventListener('change', renderTickets); $('#priorityFilter').addEventListener('change', renderTickets); $('#departmentFilter').addEventListener('change', renderTickets);
     $('#showMoreButton').addEventListener('click', () => { showAll = !showAll; renderTickets(); });
     $('#viewAllButton').addEventListener('click', () => { currentView = 'tickets'; showAll = true; render(); });
+    $('#syncButton').addEventListener('click', () => { render(); toast('Campus operations data synced.'); });
+    $('#scanQrButton').addEventListener('click', () => toast('Lab QR location scanning is ready for a campus device integration.'));
+    $('#logoutButton').addEventListener('click', () => { sessionStorage.removeItem('campuscare-demo-session'); $('#appShell').classList.add('hidden'); $('#loginScreen').classList.remove('hidden'); });
     $$('.nav-link').forEach((link) => link.addEventListener('click', (event) => { event.preventDefault(); currentView = link.dataset.view; showAll = currentView !== 'dashboard'; render(); }));
     $$('[data-close]').forEach((button) => button.addEventListener('click', () => closeModal(button.dataset.close)));
     $$('.modal-backdrop').forEach((modal) => modal.addEventListener('click', (event) => { if (event.target === modal) closeModal(modal.id); }));
     document.addEventListener('keydown', (event) => { if (event.key === 'Escape') $$('.modal-backdrop:not(.hidden)').forEach((modal) => closeModal(modal.id)); });
-    render();
+    $$('.login-role').forEach((button) => button.addEventListener('click', () => {
+      loginRole = button.dataset.loginRole;
+      $$('.login-role').forEach((item) => item.classList.toggle('selected', item === button));
+      $('#loginEmail').value = demoAccounts[loginRole];
+      $('#loginPassword').value = DEMO_PASSWORD;
+      $('#loginError').textContent = '';
+    }));
+    $('#loginForm').addEventListener('submit', (event) => {
+      event.preventDefault();
+      const email = $('#loginEmail').value.trim().toLowerCase();
+      const password = $('#loginPassword').value;
+      if (email !== demoAccounts[loginRole] || password !== DEMO_PASSWORD) {
+        $('#loginError').textContent = 'Use the sample email for your selected role and the demo password shown below.';
+        return;
+      }
+      sessionStorage.setItem('campuscare-demo-session', JSON.stringify({ role: loginRole, email }));
+      $('#loginError').textContent = '';
+      $('#loginScreen').classList.add('hidden'); $('#appShell').classList.remove('hidden');
+      currentView = loginRole === 'admin' ? 'dashboard' : ['teacher', 'student'].includes(loginRole) ? 'my-tickets' : 'tickets';
+      setRole(loginRole);
+    });
+    window.addEventListener('beforeinstallprompt', (event) => {
+      event.preventDefault(); deferredInstallPrompt = event; $('#installButton').classList.remove('hidden');
+    });
+    $('#installButton').addEventListener('click', async () => {
+      if (!deferredInstallPrompt) return;
+      deferredInstallPrompt.prompt(); await deferredInstallPrompt.userChoice; deferredInstallPrompt = null; $('#installButton').classList.add('hidden');
+    });
+    if ('serviceWorker' in navigator) navigator.serviceWorker.register('./service-worker.js').catch(() => {});
+    setInterval(updateClock, 1000);
+    let savedSession = null;
+    try { savedSession = JSON.parse(sessionStorage.getItem('campuscare-demo-session')); } catch (_) { savedSession = null; }
+    if (savedSession && people[savedSession.role]) {
+      $('#loginScreen').classList.add('hidden'); $('#appShell').classList.remove('hidden');
+      currentView = savedSession.role === 'admin' ? 'dashboard' : ['teacher', 'student'].includes(savedSession.role) ? 'my-tickets' : 'tickets';
+      setRole(savedSession.role);
+    } else {
+      $('#loginScreen').classList.remove('hidden'); $('#appShell').classList.add('hidden');
+    }
   }
 
   init();
